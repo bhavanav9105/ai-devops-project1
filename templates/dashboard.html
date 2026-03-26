@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>NexaSales AI — {{ env }} Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --primary:#0a1628; --sidebar:#060f1e; --accent:#00c6ff;
+      --accent2:#7b2ff7; --green:#00e676; --red:#ff1744;
+      --card-bg:rgba(255,255,255,0.04);
+      {% if env == 'DEV' %}--env-color:#00e676;{% elif env == 'TEST' %}--env-color:#ffc107;{% else %}--env-color:#ff1744;{% endif %}
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:var(--primary); color:#e8eaf6; font-family:'Segoe UI',sans-serif;
+           display:flex; min-height:100vh; }
+
+    /* ── SIDEBAR ── */
+    .sidebar { width:240px; min-height:100vh; background:var(--sidebar);
+               border-right:1px solid rgba(255,255,255,0.06); padding:24px 0;
+               display:flex; flex-direction:column; position:fixed; left:0; top:0; bottom:0; z-index:100; }
+    .sidebar-logo { padding:0 24px 24px; border-bottom:1px solid rgba(255,255,255,0.06); margin-bottom:16px; }
+    .sidebar-logo span { font-size:1.25rem; font-weight:800;
+                          background:linear-gradient(135deg,var(--accent),var(--accent2));
+                          -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .env-pill { display:inline-block; padding:3px 12px; border-radius:12px; font-size:.7rem;
+                font-weight:700; margin-top:6px; background:rgba(var(--env-color),0.1);
+                border:1px solid var(--env-color); color:var(--env-color); }
+    .nav-item { display:flex; align-items:center; gap:12px; padding:12px 24px;
+                color:#78909c; font-size:.9rem; cursor:pointer; transition:all .2s;
+                text-decoration:none; border-left:3px solid transparent; }
+    .nav-item:hover, .nav-item.active { background:rgba(0,198,255,0.07); color:var(--accent);
+                                         border-left-color:var(--accent); }
+    .nav-item i { width:18px; }
+    .sidebar-bottom { margin-top:auto; padding:16px 24px;
+                      border-top:1px solid rgba(255,255,255,0.06); }
+    .sidebar-bottom a { color:#546e7a; font-size:.82rem; text-decoration:none; }
+    .sidebar-bottom a:hover { color:var(--accent); }
+
+    /* ── MAIN ── */
+    .main { margin-left:240px; flex:1; padding:32px; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:32px; }
+    .topbar h2 { font-size:1.5rem; font-weight:800; }
+    .topbar-right { display:flex; align-items:center; gap:16px; }
+    .year-filter { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1);
+                   color:#e8eaf6; padding:8px 16px; border-radius:10px; font-size:.88rem;
+                   outline:none; cursor:pointer; }
+
+    /* ── CARDS ── */
+    .kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:20px; margin-bottom:28px; }
+    @media(max-width:1100px){ .kpi-row { grid-template-columns:repeat(2,1fr); } }
+    .kpi-card { background:var(--card-bg); border:1px solid rgba(255,255,255,0.07);
+                border-radius:16px; padding:22px 20px; position:relative; overflow:hidden; }
+    .kpi-card::after { content:''; position:absolute; bottom:0; left:0; right:0; height:2px;
+                        background:linear-gradient(90deg,var(--accent),var(--accent2)); }
+    .kpi-label { font-size:.75rem; color:#78909c; font-weight:600; text-transform:uppercase; letter-spacing:.5px; }
+    .kpi-val   { font-size:1.75rem; font-weight:800; margin:6px 0 4px; }
+    .kpi-chg   { font-size:.78rem; }
+    .up   { color:var(--green); } .down { color:var(--red); }
+
+    /* ── CHART PANELS ── */
+    .panel { background:var(--card-bg); border:1px solid rgba(255,255,255,0.07);
+             border-radius:16px; padding:24px; margin-bottom:24px; }
+    .panel-title { font-size:.95rem; font-weight:700; color:#b0bec5; margin-bottom:20px;
+                   display:flex; align-items:center; gap:8px; justify-content:space-between; }
+    .chart-wrap { position:relative; }
+
+    /* ── PREDICTION FORM ── */
+    .form-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px; }
+    .form-group label { font-size:.78rem; color:#78909c; font-weight:600; text-transform:uppercase;
+                         letter-spacing:.5px; margin-bottom:6px; display:block; }
+    .form-control, .form-select {
+      background:rgba(255,255,255,0.06) !important; border:1px solid rgba(255,255,255,0.1) !important;
+      color:#e8eaf6 !important; border-radius:10px; padding:10px 14px; font-size:.9rem; outline:none; }
+    .form-control:focus, .form-select:focus { border-color:var(--accent) !important; box-shadow:0 0 0 3px rgba(0,198,255,0.12) !important; }
+    .form-select option { background:#0a1628; }
+    .btn-predict { background:linear-gradient(135deg,var(--accent),var(--accent2));
+                   border:none; color:#fff; padding:12px 32px; border-radius:12px;
+                   font-weight:700; font-size:.95rem; cursor:pointer; transition:opacity .2s; width:100%; }
+    .btn-predict:hover { opacity:.85; }
+    .btn-predict:disabled { opacity:.5; cursor:not-allowed; }
+
+    /* ── RESULT ── */
+    .result-box { background:rgba(0,198,255,0.06); border:1px solid rgba(0,198,255,0.2);
+                  border-radius:14px; padding:24px; margin-top:24px; display:none; }
+    .result-amount { font-size:2.5rem; font-weight:900; color:var(--accent); }
+    .insight-list { list-style:none; padding:0; margin-top:16px; }
+    .insight-list li { background:rgba(255,255,255,0.04); border-radius:10px;
+                       padding:10px 16px; margin-bottom:8px; font-size:.88rem; color:#b0bec5; }
+
+    /* ── HISTORY TABLE ── */
+    table { width:100%; border-collapse:collapse; font-size:.85rem; }
+    th { color:#546e7a; font-weight:600; font-size:.75rem; text-transform:uppercase;
+         letter-spacing:.5px; padding:10px 14px; text-align:left;
+         border-bottom:1px solid rgba(255,255,255,0.07); }
+    td { padding:10px 14px; border-bottom:1px solid rgba(255,255,255,0.04); color:#b0bec5; }
+    tr:hover td { background:rgba(255,255,255,0.02); }
+    .badge-env { padding:3px 10px; border-radius:10px; font-size:.72rem; font-weight:700; }
+
+    /* year selector pills */
+    .year-pills { display:flex; gap:8px; }
+    .year-pill { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);
+                  color:#78909c; padding:5px 14px; border-radius:20px; font-size:.8rem;
+                  cursor:pointer; transition:all .2s; }
+    .year-pill.active { background:rgba(0,198,255,0.15); border-color:var(--accent); color:var(--accent); }
+
+    ::-webkit-scrollbar { width:5px; } ::-webkit-scrollbar-track { background:#060f1e; }
+    ::-webkit-scrollbar-thumb { background:#1e3a5f; border-radius:3px; }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div><span>⚡ NexaSales AI</span></div>
+    <span class="env-pill">{{ env }}</span>
+  </div>
+  <a href="/" class="nav-item"><i class="fas fa-home"></i> Landing Page</a>
+  <a href="/dashboard" class="nav-item active"><i class="fas fa-chart-line"></i> Dashboard</a>
+  <div class="nav-item" onclick="scrollTo('#predict-section')"><i class="fas fa-brain"></i> Predict Sales</div>
+  <div class="nav-item" onclick="scrollTo('#history-section')"><i class="fas fa-history"></i> Prediction History</div>
+  <div class="nav-item" onclick="scrollTo('#trends-section')"><i class="fas fa-chart-bar"></i> Market Trends</div>
+  <div class="sidebar-bottom">
+    <p style="color:#37474f; font-size:.75rem; margin-bottom:8px;">DATA STORAGE</p>
+    <p style="color:#546e7a; font-size:.78rem;">📦 SQLite (default)<br>🔄 Set DB_PATH env var to<br>switch to Postgres/MySQL</p>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <h2>📊 Analytics Dashboard <span style="color:#546e7a; font-size:1rem; font-weight:400;">— {{ env }}</span></h2>
+    <div class="topbar-right">
+      <div class="year-pills">
+        <span class="year-pill active" onclick="loadYear(2022,this)">2022</span>
+        <span class="year-pill" onclick="loadYear(2023,this)">2023</span>
+        <span class="year-pill" onclick="loadYear(2024,this)">2024</span>
+        <span class="year-pill" onclick="loadYear('all',this)">All</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI CARDS -->
+  <div class="kpi-row">
+    <div class="kpi-card"><div class="kpi-label">Total Revenue</div><div class="kpi-val" id="kpi-rev">—</div><div class="kpi-chg up">▲ 18.4% YoY</div></div>
+    <div class="kpi-card"><div class="kpi-label">Avg Growth</div><div class="kpi-val" id="kpi-growth">—</div><div class="kpi-chg up">▲ Uptrend</div></div>
+    <div class="kpi-card"><div class="kpi-label">Market Share</div><div class="kpi-val" id="kpi-share">—</div><div class="kpi-chg up">▲ +3.2pp</div></div>
+    <div class="kpi-card"><div class="kpi-label">Peak Month</div><div class="kpi-val" id="kpi-peak">—</div><div class="kpi-chg up">▲ Record</div></div>
+  </div>
+
+  <!-- REVENUE + GROWTH CHARTS -->
+  <div id="trends-section" style="display:grid; grid-template-columns:2fr 1fr; gap:22px; margin-bottom:24px;">
+    <div class="panel">
+      <div class="panel-title">
+        <span>📈 Revenue Trend (Monthly)</span>
+        <span id="selected-year-label" style="font-size:.8rem; color:#546e7a;">All Years</span>
+      </div>
+      <div class="chart-wrap" style="height:260px;"><canvas id="revChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title"><span>📊 Growth Rate (%)</span></div>
+      <div class="chart-wrap" style="height:260px;"><canvas id="growthChart"></canvas></div>
+    </div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:22px; margin-bottom:24px;">
+    <div class="panel">
+      <div class="panel-title"><span>🥧 Quarterly Split</span></div>
+      <div class="chart-wrap" style="height:220px;"><canvas id="doughnutChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title"><span>🌐 Market Share vs Industry</span></div>
+      <div class="chart-wrap" style="height:220px;"><canvas id="shareChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title"><span>📉 Year-over-Year Comparison</span></div>
+      <div class="chart-wrap" style="height:220px;"><canvas id="yoyChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- PREDICTION FORM -->
+  <div class="panel" id="predict-section">
+    <div class="panel-title"><span>🤖 AI Sales Prediction Engine</span></div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Marketing Spend ($)</label>
+        <input type="number" id="f-marketing" class="form-control" placeholder="e.g. 3000" value="3000"/>
+      </div>
+      <div class="form-group">
+        <label>Customer Visits</label>
+        <input type="number" id="f-visits" class="form-control" placeholder="e.g. 200" value="200"/>
+      </div>
+      <div class="form-group">
+        <label>Product Price ($)</label>
+        <input type="number" id="f-price" class="form-control" placeholder="e.g. 12" value="12"/>
+      </div>
+      <div class="form-group">
+        <label>Season / Quarter</label>
+        <select id="f-season" class="form-select">
+          <option value="Q1">Q1 (Jan–Mar)</option>
+          <option value="Q2">Q2 (Apr–Jun)</option>
+          <option value="Q3" selected>Q3 (Jul–Sep)</option>
+          <option value="Q4">Q4 (Oct–Dec)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Sales Region</label>
+        <select id="f-region" class="form-select">
+          <option value="North">North</option>
+          <option value="South" selected>South</option>
+          <option value="East">East</option>
+          <option value="West">West</option>
+          <option value="Central">Central</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Ad Channel</label>
+        <select id="f-channel" class="form-select">
+          <option value="Social Media" selected>Social Media</option>
+          <option value="TV">TV</option>
+          <option value="Email">Email</option>
+          <option value="SEO/SEM">SEO / SEM</option>
+          <option value="Influencer">Influencer</option>
+          <option value="Print">Print</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Discount (%)</label>
+        <input type="number" id="f-discount" class="form-control" placeholder="0–50" min="0" max="50" value="10"/>
+      </div>
+      <div class="form-group" style="display:flex; align-items:flex-end;">
+        <button class="btn-predict" onclick="runPrediction()">🚀 Predict Sales</button>
+      </div>
+    </div>
+
+    <!-- RESULT -->
+    <div class="result-box" id="resultBox">
+      <div style="display:grid; grid-template-columns:auto 1fr; gap:24px; align-items:start;">
+        <div>
+          <div style="font-size:.78rem; color:#78909c; font-weight:600; text-transform:uppercase; margin-bottom:6px;">Predicted Sales Revenue</div>
+          <div class="result-amount" id="resultAmount">—</div>
+          <div style="font-size:.82rem; color:#546e7a; margin-top:4px;" id="resultEnv"></div>
+        </div>
+        <div>
+          <div style="font-size:.78rem; color:#78909c; font-weight:600; text-transform:uppercase; margin-bottom:8px;">💡 AI Improvement Recommendations</div>
+          <ul class="insight-list" id="insightList"></ul>
+        </div>
+      </div>
+
+      <!-- Prediction Charts -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:24px;">
+        <div>
+          <div style="font-size:.82rem; color:#78909c; margin-bottom:10px; font-weight:600;">📊 Input vs Predicted Analysis</div>
+          <div style="height:200px;"><canvas id="predBarChart"></canvas></div>
+        </div>
+        <div>
+          <div style="font-size:.82rem; color:#78909c; margin-bottom:10px; font-weight:600;">📈 Marketing Spend Scenarios</div>
+          <div style="height:200px;"><canvas id="scenarioChart"></canvas></div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;">
+        <div style="font-size:.82rem; color:#78909c; margin-bottom:10px; font-weight:600;">🔁 What-If: Predicted Revenue at Different Marketing Budgets</div>
+        <div style="height:160px;"><canvas id="whatifChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY TABLE -->
+  <div class="panel" id="history-section">
+    <div class="panel-title">
+      <span>🕒 Prediction History ({{ env }})</span>
+      <button onclick="loadHistory()" style="background:rgba(0,198,255,0.1); border:1px solid rgba(0,198,255,0.3); color:var(--accent); padding:5px 14px; border-radius:8px; font-size:.8rem; cursor:pointer;">↻ Refresh</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table id="historyTable">
+        <thead>
+          <tr>
+            <th>#</th><th>Date</th><th>Marketing</th><th>Visits</th><th>Price</th>
+            <th>Season</th><th>Region</th><th>Channel</th><th>Discount</th><th>Predicted Sales</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody">
+          <tr><td colspan="10" style="text-align:center; color:#546e7a;">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+const ENV = "{{ env }}";
+const envColors = { DEV:'#00e676', TEST:'#ffc107', PROD:'#ff1744' };
+
+let revChartInst=null, growthChartInst=null, doughChartInst=null;
+let shareChartInst=null, yoyChartInst=null;
+let predBarInst=null, scenarioInst=null, whatifInst=null;
+
+function scrollTo(id) { document.querySelector(id)?.scrollIntoView({behavior:'smooth'}); }
+
+function gradient(ctx, c1, c2) {
+  const g = ctx.createLinearGradient(0,0,0,280);
+  g.addColorStop(0,c1); g.addColorStop(1,c2); return g;
+}
+
+// ── Load KPIs ──
+fetch('/api/kpis').then(r=>r.json()).then(d => {
+  document.getElementById('kpi-rev').textContent    = '$'+(d.total_revenue/1e6).toFixed(2)+'M';
+  document.getElementById('kpi-growth').textContent = d.avg_growth.toFixed(1)+'%';
+  document.getElementById('kpi-share').textContent  = d.avg_market_share.toFixed(1)+'%';
+  document.getElementById('kpi-peak').textContent   = '$'+(d.max_revenue/1000).toFixed(0)+'K';
+});
+
+// ── Load Historical Charts ──
+let allData = [];
+function loadYear(year, el) {
+  document.querySelectorAll('.year-pill').forEach(p=>p.classList.remove('active'));
+  if(el) el.classList.add('active');
+  const label = year === 'all' ? 'All Years' : `Year ${year}`;
+  document.getElementById('selected-year-label').textContent = label;
+
+  const url = year === 'all' ? '/api/historical' : `/api/historical?year=${year}`;
+  fetch(url).then(r=>r.json()).then(data => {
+    allData = data;
+    buildRevChart(data, year);
+    buildGrowthChart(data, year);
+    buildDoughnut(data, year);
+    buildShareChart(data, year);
+    buildYoY(data);
+  });
+}
+
+const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function buildRevChart(data, year) {
+  if(revChartInst) revChartInst.destroy();
+  const ctx = document.getElementById('revChart').getContext('2d');
+  let datasets;
+  if(year === 'all') {
+    const years = [2022,2023,2024];
+    const colors = ['#00c6ff','#7b2ff7','#00e676'];
+    datasets = years.map((yr,i) => ({
+      label: yr, data: data.filter(d=>d.year===yr).map(d=>d.revenue),
+      borderColor:colors[i], backgroundColor:'transparent', tension:.4, borderWidth:2.5, pointRadius:3
+    }));
+  } else {
+    const fill = gradient(ctx,'rgba(0,198,255,0.25)','rgba(0,198,255,0)');
+    datasets = [{ label:`Revenue ${year}`, data:data.map(d=>d.revenue),
+      borderColor:'#00c6ff', backgroundColor:fill, fill:true, tension:.4, borderWidth:2.5, pointRadius:4 }];
+  }
+  revChartInst = new Chart(ctx, {
+    type:'line', data:{ labels:months, datasets },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#b0bec5'}}},
+      scales:{
+        x:{ticks:{color:'#546e7a'}, grid:{color:'rgba(255,255,255,0.04)'}},
+        y:{ticks:{color:'#546e7a', callback:v=>'$'+Math.round(v/1000)+'K'}, grid:{color:'rgba(255,255,255,0.04)'}}
+      }
+    }
+  });
+}
+
+function buildGrowthChart(data, year) {
+  if(growthChartInst) growthChartInst.destroy();
+  const d = year==='all' ? data.filter(x=>x.year===2024) : data;
+  growthChartInst = new Chart(document.getElementById('growthChart'), {
+    type:'bar', data:{ labels:months,
+      datasets:[{ label:'Growth %', data:d.map(x=>x.growth_rate),
+        backgroundColor:d.map(x=>x.growth_rate>=0?'rgba(0,230,118,0.5)':'rgba(255,23,68,0.5)'),
+        borderColor:d.map(x=>x.growth_rate>=0?'#00e676':'#ff1744'),
+        borderWidth:1, borderRadius:6 }]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#b0bec5'}}},
+      scales:{
+        x:{ticks:{color:'#546e7a'}, grid:{color:'rgba(255,255,255,0.04)'}},
+        y:{ticks:{color:'#546e7a', callback:v=>v+'%'}, grid:{color:'rgba(255,255,255,0.04)'}}
+      }
+    }
+  });
+}
+
+function buildDoughnut(data, year) {
+  if(doughChartInst) doughChartInst.destroy();
+  const d = year==='all' ? data.filter(x=>x.year===2024) : data;
+  const q=[0,0,0,0];
+  d.forEach(x=>{ q[Math.floor((x.month-1)/3)] += x.revenue; });
+  doughChartInst = new Chart(document.getElementById('doughnutChart'), {
+    type:'doughnut', data:{ labels:['Q1','Q2','Q3','Q4'],
+      datasets:[{ data:q, backgroundColor:['#00c6ff','#7b2ff7','#00e676','#ff6b6b'], borderWidth:0, hoverOffset:6 }]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{labels:{color:'#b0bec5'}} } }
+  });
+}
+
+function buildShareChart(data, year) {
+  if(shareChartInst) shareChartInst.destroy();
+  const d = year==='all' ? data.filter(x=>x.year===2024) : data;
+  shareChartInst = new Chart(document.getElementById('shareChart'), {
+    type:'line', data:{ labels:months,
+      datasets:[
+        { label:'Our Share %', data:d.map(x=>x.market_share), borderColor:'#00c6ff', tension:.4, borderWidth:2, pointRadius:3 },
+        { label:'Industry Rev (K)', data:d.map(x=>x.industry_avg/1000), borderColor:'#ff6b6b',
+          tension:.4, borderDash:[5,5], borderWidth:1.5, pointRadius:0 }
+      ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#b0bec5'}}},
+      scales:{
+        x:{ticks:{color:'#546e7a',maxTicksLimit:6}, grid:{color:'rgba(255,255,255,0.04)'}},
+        y:{ticks:{color:'#546e7a'}, grid:{color:'rgba(255,255,255,0.04)'}}
+      }
+    }
+  });
+}
+
+function buildYoY(data) {
+  if(yoyChartInst) yoyChartInst.destroy();
+  const years=[2022,2023,2024];
+  const totals = years.map(yr => data.filter(d=>d.year===yr).reduce((s,d)=>s+d.revenue,0));
+  yoyChartInst = new Chart(document.getElementById('yoyChart'), {
+    type:'bar', data:{ labels:years.map(String),
+      datasets:[{ label:'Annual Revenue', data:totals,
+        backgroundColor:['rgba(0,198,255,0.4)','rgba(123,47,247,0.4)','rgba(0,230,118,0.4)'],
+        borderColor:['#00c6ff','#7b2ff7','#00e676'],
+        borderWidth:2, borderRadius:10 }]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#b0bec5'}}},
+      scales:{
+        x:{ticks:{color:'#546e7a'}, grid:{display:false}},
+        y:{ticks:{color:'#546e7a', callback:v=>'$'+(v/1e6).toFixed(1)+'M'}, grid:{color:'rgba(255,255,255,0.04)'}}
+      }
+    }
+  });
+}
+
+// ── PREDICTION ──
+async function runPrediction() {
+  const btn = document.querySelector('.btn-predict');
+  btn.disabled = true; btn.textContent = '⏳ Predicting...';
+
+  const body = new URLSearchParams({
+    marketing: document.getElementById('f-marketing').value,
+    visits:    document.getElementById('f-visits').value,
+    price:     document.getElementById('f-price').value,
+    season:    document.getElementById('f-season').value,
+    region:    document.getElementById('f-region').value,
+    ad_channel:document.getElementById('f-channel').value,
+    discount:  document.getElementById('f-discount').value
+  });
+
+  const res = await fetch('/predict', { method:'POST', body });
+  const d   = await res.json();
+  btn.disabled = false; btn.textContent = '🚀 Predict Sales';
+
+  document.getElementById('resultAmount').textContent = '$' + d.predicted_sales.toLocaleString('en-US',{minimumFractionDigits:2});
+  document.getElementById('resultEnv').textContent    = `Stored in ${ENV} environment database`;
+
+  // Insights
+  const ul = document.getElementById('insightList');
+  ul.innerHTML = d.insights.length
+    ? d.insights.map(i=>`<li>${i.icon} ${i.text}</li>`).join('')
+    : '<li>✅ All metrics look healthy! Good inputs for strong sales.</li>';
+
+  // Bar chart: inputs scaled
+  if(predBarInst) predBarInst.destroy();
+  const ctx1 = document.getElementById('predBarChart').getContext('2d');
+  const inp = d.inputs;
+  predBarInst = new Chart(ctx1, {
+    type:'bar',
+    data:{ labels:['Marketing ($)', 'Visits', 'Price ($)', 'Discount (%)', 'Predicted ($)'],
+      datasets:[{ data:[inp.marketing, inp.visits, inp.price, inp.discount, d.predicted_sales],
+        backgroundColor:['rgba(0,198,255,0.4)','rgba(123,47,247,0.4)','rgba(0,230,118,0.4)',
+                         'rgba(255,107,107,0.4)','rgba(0,198,255,0.7)'],
+        borderRadius:8, borderWidth:0 }]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales:{ x:{ticks:{color:'#546e7a'}}, y:{ticks:{color:'#546e7a'}, grid:{color:'rgba(255,255,255,0.04)'}} } }
+  });
+
+  // Scenario chart
+  if(scenarioInst) scenarioInst.destroy();
+  scenarioInst = new Chart(document.getElementById('scenarioChart'), {
+    type:'bar',
+    data:{ labels:d.scenarios.map(s=>s.label),
+      datasets:[{ label:'Predicted Revenue', data:d.scenarios.map(s=>s.value),
+        backgroundColor:['rgba(0,198,255,0.3)','rgba(0,198,255,0.5)','rgba(0,198,255,0.7)','rgba(0,198,255,0.9)'],
+        borderRadius:8, borderWidth:0 }]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales:{ x:{ticks:{color:'#546e7a', font:{size:10}}},
+               y:{ticks:{color:'#546e7a', callback:v=>'$'+(v/1000).toFixed(0)+'K'}, grid:{color:'rgba(255,255,255,0.04)'}} } }
+  });
+
+  // What-if line
+  if(whatifInst) whatifInst.destroy();
+  const wLabels = d.scenarios.map(s=>s.label);
+  const wData   = d.scenarios.map(s=>s.value);
+  whatifInst = new Chart(document.getElementById('whatifChart'), {
+    type:'line',
+    data:{ labels:wLabels, datasets:[{ label:'Revenue', data:wData,
+      borderColor:'#7b2ff7', backgroundColor:'rgba(123,47,247,0.1)',
+      fill:true, tension:.4, borderWidth:2.5, pointRadius:5, pointBackgroundColor:'#7b2ff7' }]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales:{ x:{ticks:{color:'#546e7a'}},
+               y:{ticks:{color:'#546e7a', callback:v=>'$'+(v/1000).toFixed(0)+'K'}, grid:{color:'rgba(255,255,255,0.04)'}} } }
+  });
+
+  document.getElementById('resultBox').style.display='block';
+  document.getElementById('resultBox').scrollIntoView({behavior:'smooth'});
+  loadHistory();
+}
+
+// ── History Table ──
+function loadHistory() {
+  fetch('/api/predictions/history').then(r=>r.json()).then(rows => {
+    const tbody = document.getElementById('historyBody');
+    if(!rows.length) { tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:#546e7a;">No predictions yet</td></tr>'; return; }
+    tbody.innerHTML = rows.map((r,i) => `
+      <tr>
+        <td>${i+1}</td>
+        <td>${r.created_at ? r.created_at.split('T')[0] : '—'}</td>
+        <td>$${(+r.marketing).toLocaleString()}</td>
+        <td>${r.visits}</td>
+        <td>$${r.price}</td>
+        <td>${r.season||'—'}</td>
+        <td>${r.region||'—'}</td>
+        <td>${r.ad_channel||'—'}</td>
+        <td>${r.discount||0}%</td>
+        <td style="color:#00e676; font-weight:700;">$${(+r.predicted_sales).toLocaleString('en-US',{minimumFractionDigits:2})}</td>
+      </tr>`).join('');
+  });
+}
+
+// ── Init ──
+loadYear('all', null);
+document.querySelectorAll('.year-pill')[3].classList.add('active');
+loadHistory();
+</script>
+</body>
+</html>

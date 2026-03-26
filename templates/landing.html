@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NexaSales AI — Intelligent Business Analytics</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --primary: #0a1628;
+      --accent:  #00c6ff;
+      --accent2: #7b2ff7;
+      --green:   #00e676;
+      --red:     #ff1744;
+      --card-bg: rgba(255,255,255,0.04);
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:var(--primary); color:#e8eaf6; font-family:'Segoe UI',sans-serif; overflow-x:hidden; }
+
+    /* ── NAV ── */
+    nav { position:fixed; top:0; width:100%; z-index:999;
+          background:rgba(10,22,40,0.92); backdrop-filter:blur(12px);
+          border-bottom:1px solid rgba(0,198,255,0.15); padding:14px 40px;
+          display:flex; align-items:center; justify-content:space-between; }
+    .nav-logo { font-size:1.5rem; font-weight:800; letter-spacing:1px;
+                background:linear-gradient(135deg,var(--accent),var(--accent2));
+                -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .nav-links a { color:#b0bec5; text-decoration:none; margin-left:28px;
+                   font-size:.92rem; font-weight:500; transition:color .2s; }
+    .nav-links a:hover { color:var(--accent); }
+    .nav-cta { background:linear-gradient(135deg,var(--accent),var(--accent2));
+               color:#fff; border:none; padding:9px 24px; border-radius:25px;
+               font-weight:600; font-size:.88rem; cursor:pointer;
+               text-decoration:none; transition:opacity .2s; }
+    .nav-cta:hover { opacity:.85; color:#fff; }
+
+    /* ── TICKER ── */
+    .ticker-bar { background:rgba(0,198,255,0.07); border-bottom:1px solid rgba(0,198,255,0.12);
+                  padding:8px 0; margin-top:64px; overflow:hidden; white-space:nowrap; }
+    .ticker-inner { display:inline-flex; gap:40px; animation:ticker 30s linear infinite; }
+    .ticker-inner:hover { animation-play-state:paused; }
+    @keyframes ticker { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+    .tick-item { font-size:.82rem; font-weight:600; }
+    .tick-up   { color:var(--green); }
+    .tick-down { color:var(--red); }
+
+    /* ── HERO ── */
+    .hero { min-height:88vh; display:flex; align-items:center; justify-content:center;
+            text-align:center; padding:60px 20px 40px;
+            background:radial-gradient(ellipse at 50% 0%, rgba(123,47,247,0.18) 0%, transparent 70%); }
+    .hero-badge { display:inline-block; background:rgba(0,198,255,0.12); border:1px solid rgba(0,198,255,0.3);
+                  color:var(--accent); padding:6px 18px; border-radius:20px; font-size:.8rem;
+                  font-weight:600; letter-spacing:1px; margin-bottom:28px; }
+    .hero h1 { font-size:3.8rem; font-weight:900; line-height:1.1; margin-bottom:22px; }
+    .hero h1 span { background:linear-gradient(135deg,var(--accent),var(--accent2));
+                    -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .hero p { font-size:1.15rem; color:#90a4ae; max-width:620px; margin:0 auto 38px; line-height:1.75; }
+    .hero-btns { display:flex; gap:16px; justify-content:center; flex-wrap:wrap; }
+    .btn-hero-primary { background:linear-gradient(135deg,var(--accent),var(--accent2));
+                        color:#fff; padding:14px 36px; border-radius:30px; font-weight:700;
+                        font-size:1rem; text-decoration:none; transition:transform .2s; }
+    .btn-hero-primary:hover { transform:translateY(-2px); color:#fff; }
+    .btn-hero-outline { border:1px solid rgba(0,198,255,0.4); color:var(--accent);
+                        padding:14px 36px; border-radius:30px; font-weight:600;
+                        font-size:1rem; text-decoration:none; transition:all .2s; }
+    .btn-hero-outline:hover { background:rgba(0,198,255,0.1); color:var(--accent); }
+
+    /* ── KPI CARDS ── */
+    .section { padding:80px 40px; }
+    .section-title { font-size:2rem; font-weight:800; margin-bottom:8px; }
+    .section-sub   { color:#78909c; margin-bottom:44px; }
+    .kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:22px; }
+    .kpi-card { background:var(--card-bg); border:1px solid rgba(255,255,255,0.08);
+                border-radius:18px; padding:28px 24px; position:relative; overflow:hidden;
+                transition:transform .25s; }
+    .kpi-card:hover { transform:translateY(-4px); }
+    .kpi-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px;
+                         background:linear-gradient(90deg,var(--accent),var(--accent2)); }
+    .kpi-label  { font-size:.8rem; color:#78909c; font-weight:600; letter-spacing:.5px; text-transform:uppercase; }
+    .kpi-value  { font-size:2rem; font-weight:800; margin:8px 0 4px; }
+    .kpi-change { font-size:.82rem; }
+    .up   { color:var(--green); }
+    .down { color:var(--red); }
+
+    /* ── CHARTS ── */
+    .chart-row { display:grid; grid-template-columns:2fr 1fr; gap:24px; margin-top:40px; }
+    @media(max-width:900px){ .chart-row { grid-template-columns:1fr; } }
+    .chart-card { background:var(--card-bg); border:1px solid rgba(255,255,255,0.08);
+                  border-radius:18px; padding:28px; }
+    .chart-card h5 { font-size:1rem; font-weight:700; margin-bottom:20px; color:#b0bec5; }
+    .chart-wrap { position:relative; height:260px; }
+
+    /* ── STOCK TICKER ── */
+    .stock-row { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:24px; }
+    @media(max-width:768px){ .stock-row { grid-template-columns:1fr; } }
+
+    /* ── FEATURES ── */
+    .features-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:26px; }
+    .feature-card { background:var(--card-bg); border:1px solid rgba(255,255,255,0.07);
+                    border-radius:18px; padding:32px 28px; transition:all .25s; }
+    .feature-card:hover { border-color:rgba(0,198,255,0.3); transform:translateY(-4px); }
+    .feat-icon { width:52px; height:52px; border-radius:14px; display:flex; align-items:center;
+                 justify-content:center; font-size:1.5rem; margin-bottom:18px;
+                 background:linear-gradient(135deg,rgba(0,198,255,0.15),rgba(123,47,247,0.15)); }
+    .feature-card h5 { font-size:1.05rem; font-weight:700; margin-bottom:10px; }
+    .feature-card p  { color:#78909c; font-size:.9rem; line-height:1.65; }
+
+    /* ── ENV BADGE ── */
+    .env-badge { position:fixed; bottom:24px; right:24px; z-index:999;
+                 padding:8px 18px; border-radius:20px; font-size:.78rem; font-weight:700;
+                 letter-spacing:1px; border:1px solid; }
+    .env-DEV  { background:rgba(0,230,118,0.12); color:var(--green);  border-color:var(--green); }
+    .env-TEST { background:rgba(255,193,7,0.12);  color:#ffc107;       border-color:#ffc107; }
+    .env-PROD { background:rgba(255,23,68,0.12);  color:var(--red);    border-color:var(--red); }
+
+    /* ── FOOTER ── */
+    footer { background:rgba(0,0,0,0.3); padding:40px; text-align:center; color:#455a64;
+             border-top:1px solid rgba(255,255,255,0.05); font-size:.88rem; }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width:6px; }
+    ::-webkit-scrollbar-track { background:#0a1628; }
+    ::-webkit-scrollbar-thumb { background:#1e3a5f; border-radius:3px; }
+  </style>
+</head>
+<body>
+
+<!-- ENV badge -->
+<div class="env-badge env-{{ env }}">{{ env }} ENVIRONMENT</div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">⚡ NexaSales AI</div>
+  <div class="nav-links">
+    <a href="#markets">Markets</a>
+    <a href="#trends">Trends</a>
+    <a href="#features">Features</a>
+    <a href="/dashboard" class="nav-cta">Open Dashboard →</a>
+  </div>
+</nav>
+
+<!-- STOCK TICKER -->
+<div class="ticker-bar">
+  <div class="ticker-inner" id="tickerInner">
+    <span class="tick-item tick-up">NEXA <b>$182.45</b> ▲2.3%</span>
+    <span class="tick-item tick-down">S&P 500 <b>5,241.30</b> ▼0.4%</span>
+    <span class="tick-item tick-up">NASDAQ <b>16,782.50</b> ▲1.1%</span>
+    <span class="tick-item tick-up">AAPL <b>$189.30</b> ▲0.8%</span>
+    <span class="tick-item tick-down">AMZN <b>$178.20</b> ▼0.2%</span>
+    <span class="tick-item tick-up">GOOGL <b>$152.80</b> ▲1.5%</span>
+    <span class="tick-item tick-up">Q4 Revenue <b>+28.4%</b> ▲YoY</span>
+    <span class="tick-item tick-up">Market Share <b>24.6%</b> ▲</span>
+    <span class="tick-item tick-down">Oil WTI <b>$79.12</b> ▼0.6%</span>
+    <!-- duplicate for seamless loop -->
+    <span class="tick-item tick-up">NEXA <b>$182.45</b> ▲2.3%</span>
+    <span class="tick-item tick-down">S&P 500 <b>5,241.30</b> ▼0.4%</span>
+    <span class="tick-item tick-up">NASDAQ <b>16,782.50</b> ▲1.1%</span>
+    <span class="tick-item tick-up">AAPL <b>$189.30</b> ▲0.8%</span>
+    <span class="tick-item tick-down">AMZN <b>$178.20</b> ▼0.2%</span>
+    <span class="tick-item tick-up">GOOGL <b>$152.80</b> ▲1.5%</span>
+    <span class="tick-item tick-up">Q4 Revenue <b>+28.4%</b> ▲YoY</span>
+    <span class="tick-item tick-up">Market Share <b>24.6%</b> ▲</span>
+    <span class="tick-item tick-down">Oil WTI <b>$79.12</b> ▼0.6%</span>
+  </div>
+</div>
+
+<!-- HERO -->
+<div class="hero">
+  <div>
+    <div class="hero-badge">🚀 AI-POWERED SALES INTELLIGENCE</div>
+    <h1>Predict. Analyze.<br><span>Outperform the Market.</span></h1>
+    <p>NexaSales AI gives enterprise teams real-time sales forecasting, market trend analytics, and AI-driven insights—powered by machine learning.</p>
+    <div class="hero-btns">
+      <a href="/dashboard" class="btn-hero-primary">Open Analytics Dashboard</a>
+      <a href="#markets" class="btn-hero-outline">View Market Trends</a>
+    </div>
+  </div>
+</div>
+
+<!-- KPI SECTION -->
+<section class="section" id="markets">
+  <div class="text-center mb-5">
+    <div class="section-title">Live Company KPIs</div>
+    <div class="section-sub">Real-time performance metrics across all business units</div>
+  </div>
+  <div class="kpi-grid" id="kpiGrid">
+    <div class="kpi-card"><div class="kpi-label">Total Revenue (YTD)</div><div class="kpi-value" id="kpi-rev">—</div><div class="kpi-change up">▲ 18.4% vs last year</div></div>
+    <div class="kpi-card"><div class="kpi-label">Avg Growth Rate</div><div class="kpi-value" id="kpi-growth">—</div><div class="kpi-change up">▲ Steady uptrend</div></div>
+    <div class="kpi-card"><div class="kpi-label">Market Share</div><div class="kpi-value" id="kpi-share">—</div><div class="kpi-change up">▲ 3.2pp gain</div></div>
+    <div class="kpi-card"><div class="kpi-label">Peak Revenue</div><div class="kpi-value" id="kpi-peak">—</div><div class="kpi-change up">▲ Best month ever</div></div>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="chart-row" id="trends">
+    <div class="chart-card">
+      <h5>📈 Revenue Trend — 2022 · 2023 · 2024</h5>
+      <div class="chart-wrap"><canvas id="revenueChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h5>🥧 Revenue by Quarter</h5>
+      <div class="chart-wrap"><canvas id="quarterChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="stock-row" style="margin-top:24px;">
+    <div class="chart-card">
+      <h5>📊 Share Price — Last 30 Days</h5>
+      <div class="chart-wrap"><canvas id="stockChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h5>📦 Trade Volume — Last 30 Days</h5>
+      <div class="chart-wrap"><canvas id="volumeChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Market Share Line -->
+  <div class="chart-card" style="margin-top:24px;">
+    <h5>🌐 Market Share vs Industry Average Revenue (Monthly)</h5>
+    <div class="chart-wrap" style="height:220px;"><canvas id="marketShareChart"></canvas></div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="section" id="features" style="background:rgba(0,0,0,0.2);">
+  <div class="text-center mb-5">
+    <div class="section-title">Why NexaSales AI?</div>
+    <div class="section-sub">Enterprise-grade features built for modern sales teams</div>
+  </div>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feat-icon">🤖</div>
+      <h5>AI Sales Prediction</h5>
+      <p>7 input parameters — season, region, ad channel, discount, and more — feed our ML model for accurate revenue forecasting.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feat-icon">📊</div>
+      <h5>Historical Analytics</h5>
+      <p>3-year trend comparison, year-over-year growth analysis, and quarterly breakdowns — all in one view.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feat-icon">💾</div>
+      <h5>Flexible Data Storage</h5>
+      <p>Every prediction is stored. Choose SQLite, PostgreSQL, or MySQL — swap via a single environment variable with zero code change.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feat-icon">🌍</div>
+      <h5>Multi-Environment</h5>
+      <p>DEV · TEST · PROD containers run simultaneously. Each environment is isolated with its own data and configuration.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feat-icon">📈</div>
+      <h5>Live Market Feed</h5>
+      <p>Real-time stock price simulation, volume analysis, S&P correlation, and sector performance on the landing page.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feat-icon">💡</div>
+      <h5>AI-Powered Insights</h5>
+      <p>After every prediction, the system provides actionable recommendations to improve your sales strategy.</p>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="nav-logo" style="font-size:1.2rem; margin-bottom:12px;">⚡ NexaSales AI</div>
+  <p>© 2024 NexaSales AI Corp. · AI-Powered Business Intelligence · DevOps Project</p>
+  <p style="margin-top:8px;">Running on <strong>{{ env }}</strong> environment &nbsp;|&nbsp; <a href="/dashboard" style="color:var(--accent); text-decoration:none;">Open Dashboard →</a></p>
+</footer>
+
+<script>
+// Gradient helper
+function gradient(ctx, color1, color2) {
+  const g = ctx.createLinearGradient(0, 0, 0, 300);
+  g.addColorStop(0, color1); g.addColorStop(1, color2); return g;
+}
+
+// ── Load KPIs ──
+fetch('/api/kpis').then(r=>r.json()).then(d => {
+  document.getElementById('kpi-rev').textContent    = '$' + (d.total_revenue/1000000).toFixed(2) + 'M';
+  document.getElementById('kpi-growth').textContent = d.avg_growth.toFixed(1) + '%';
+  document.getElementById('kpi-share').textContent  = d.avg_market_share.toFixed(1) + '%';
+  document.getElementById('kpi-peak').textContent   = '$' + (d.max_revenue/1000).toFixed(0) + 'K';
+});
+
+// ── Revenue Trend ──
+fetch('/api/historical').then(r=>r.json()).then(data => {
+  const years = [2022, 2023, 2024];
+  const colors = ['#00c6ff','#7b2ff7','#00e676'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const datasets = years.map((yr,i) => ({
+    label: yr,
+    data: data.filter(d=>d.year===yr).map(d=>d.revenue),
+    borderColor: colors[i],
+    backgroundColor: 'transparent',
+    borderWidth: 2.5,
+    pointRadius: 3,
+    tension: 0.4
+  }));
+  new Chart(document.getElementById('revenueChart'), {
+    type:'line',
+    data: { labels: months, datasets },
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins: { legend:{ labels:{ color:'#b0bec5' }}},
+      scales: {
+        x: { ticks:{color:'#546e7a'}, grid:{color:'rgba(255,255,255,0.04)'} },
+        y: { ticks:{color:'#546e7a', callback:v=>'$'+Math.round(v/1000)+'K'}, grid:{color:'rgba(255,255,255,0.04)'} }
+      }
+    }
+  });
+
+  // Quarter doughnut
+  const qData = [0,0,0,0];
+  data.filter(d=>d.year===2024).forEach(d => { qData[Math.floor((d.month-1)/3)] += d.revenue; });
+  new Chart(document.getElementById('quarterChart'), {
+    type:'doughnut',
+    data:{ labels:['Q1','Q2','Q3','Q4'], datasets:[{data:qData, backgroundColor:['#00c6ff','#7b2ff7','#00e676','#ff6b6b'], borderWidth:0}]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{color:'#b0bec5'}}} }
+  });
+
+  // Market share line
+  const mData = data.filter(d=>d.year===2024);
+  new Chart(document.getElementById('marketShareChart'), {
+    type:'line',
+    data:{ labels: months, datasets:[
+      { label:'Market Share %', data: mData.map(d=>d.market_share), borderColor:'#00c6ff', tension:.4, yAxisID:'y1', borderWidth:2 },
+      { label:'Industry Avg Revenue', data: mData.map(d=>d.industry_avg), borderColor:'#7b2ff7', tension:.4, borderDash:[5,5], borderWidth:2 }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#b0bec5'}}},
+      scales:{
+        x:{ticks:{color:'#546e7a'}, grid:{color:'rgba(255,255,255,0.04)'}},
+        y:{ticks:{color:'#546e7a'}, grid:{color:'rgba(255,255,255,0.04)'}},
+        y1:{position:'right', ticks:{color:'#546e7a'}, grid:{drawOnChartArea:false}}
+      }
+    }
+  });
+});
+
+// ── Stock Chart ──
+fetch('/api/stock_trend').then(r=>r.json()).then(d => {
+  const ctx1 = document.getElementById('stockChart').getContext('2d');
+  new Chart(ctx1, {
+    type:'line',
+    data:{ labels:d.labels, datasets:[{
+      label:'NEXA ($)', data:d.prices,
+      borderColor:'#00e676', fill:true,
+      backgroundColor: gradient(ctx1,'rgba(0,230,118,0.25)','rgba(0,230,118,0)'),
+      tension:.4, borderWidth:2, pointRadius:0
+    }]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#b0bec5'}}},
+      scales:{
+        x:{ticks:{color:'#546e7a',maxTicksLimit:7}, grid:{color:'rgba(255,255,255,0.04)'}},
+        y:{ticks:{color:'#546e7a', callback:v=>'$'+v}, grid:{color:'rgba(255,255,255,0.04)'}}
+      }
+    }
+  });
+  const ctx2 = document.getElementById('volumeChart').getContext('2d');
+  new Chart(ctx2, {
+    type:'bar',
+    data:{ labels:d.labels, datasets:[{
+      label:'Volume', data:d.volumes,
+      backgroundColor:'rgba(123,47,247,0.4)', borderColor:'#7b2ff7', borderWidth:1, borderRadius:4
+    }]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#b0bec5'}}},
+      scales:{
+        x:{ticks:{color:'#546e7a',maxTicksLimit:7}, grid:{color:'rgba(255,255,255,0.04)'}},
+        y:{ticks:{color:'#546e7a', callback:v=>(v/1e6).toFixed(1)+'M'}, grid:{color:'rgba(255,255,255,0.04)'}}
+      }
+    }
+  });
+});
+</script>
+</body>
+</html>

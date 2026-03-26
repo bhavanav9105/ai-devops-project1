@@ -1,0 +1,62 @@
+version: '3.8'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NexaSales AI — Multi-Environment Docker Compose
+#
+# Storage options (set DB_PATH env var per container):
+#   Default : SQLite  → DB_PATH=sales_data.db         (stored in named volume)
+#   Postgres: set DB_PATH=postgresql://user:pass@host/db  (swap driver in app.py)
+#   MySQL   : set DB_PATH=mysql://user:pass@host/db       (swap driver in app.py)
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── DEV (port 8081) ────────────────────────────────────────────────────────
+  dev:
+    build: .
+    image: ai-devops-app
+    container_name: ai-devops-dev
+    ports:
+      - "8081:5000"
+    environment:
+      - ENV=DEV
+      - DB_PATH=/app/data/dev_sales.db      # SQLite — change to Postgres URI if needed
+    volumes:
+      - dev-data:/app/data                  # Named volume → data survives container restarts
+    restart: unless-stopped
+
+  # ── TEST (port 8082) ───────────────────────────────────────────────────────
+  test:
+    image: ai-devops-app
+    container_name: ai-devops-test
+    ports:
+      - "8082:5000"
+    environment:
+      - ENV=TEST
+      - DB_PATH=/app/data/test_sales.db
+    volumes:
+      - test-data:/app/data
+    depends_on:
+      - dev
+    restart: unless-stopped
+
+  # ── PROD (port 8083) ───────────────────────────────────────────────────────
+  prod:
+    image: ai-devops-app
+    container_name: ai-devops-prod
+    ports:
+      - "8083:5000"
+    environment:
+      - ENV=PROD
+      - DB_PATH=/app/data/prod_sales.db
+    volumes:
+      - prod-data:/app/data
+    depends_on:
+      - dev
+    restart: unless-stopped
+
+# ─── Named Volumes (data persists even after docker-compose down) ─────────────
+volumes:
+  dev-data:
+  test-data:
+  prod-data:
