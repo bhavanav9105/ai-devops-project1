@@ -11,13 +11,13 @@ version: '3.8'
 
 services:
 
-  # ── DEV (port 8081) ────────────────────────────────────────────────────────
+  # ── DEV (port 8084) ────────────────────────────────────────────────────────
   dev:
     build: .
     image: ai-devops-app
     container_name: ai-devops-dev
     ports:
-      - "8081:5000"
+      - "8084:5000"
     environment:
       - ENV=DEV
       - DB_PATH=/app/data/dev_sales.db      # SQLite — change to Postgres URI if needed
